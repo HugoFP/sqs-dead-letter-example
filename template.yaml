@@ -16,6 +16,24 @@ Resources:
   # QUEUES
   MyMainQueue:
     Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true
+      ContentBasedDeduplication: true
+      QueueName: MyMainQueue.fifo
+      DelaySeconds: 0 # The time in seconds for which the delivery of all messages in the queue is delayed
+      VisibilityTimeout: 10 # Time (s) in which a message will be unavailable after the message is delivered from the queue
+      MessageRetentionPeriod: 120 # The number of seconds that Amazon SQS retains a message. Min 60
+  # QUEUE RETRIES - https://docs.aws.amazon.com/lambda/latest/operatorguide/sqs-retries.html
+  # If a Lambda function throws an error, the Lambda service continues to process the failed message until:
+  # 1. The message is processed without any error from the function, and the service deletes the message from the queue.
+  # 2. The Message retention period is reached and SQS deletes the message from the queue.
+  # 3. There is a dead-letter queue (DLQ) configured and SQS sends the message to this queue. It’s best practice to enable a DLQ on an SQS queue to prevent any message loss.
+  # Lambda does not delete messages from the queue unless there is a successful invocation. If any messages in a batch fail, all messages are returned to the original queue for reprocessing.
+  # In an application under heavy load or with spiky traffic patterns, it’s recommended that you:
+  # 1. Set the queue’s visibility timeout to at least six times the function timeout value. This allows the function time to process each batch of records if the function execution is throttled while processing a previous batch.
+  # 2. Set the maxReceiveCount on the source queue’s redrive policy to at least 5. This improves the chances of messages being processed before reaching the DLQ.
+  # 3. Ensure idempotency to allow messages to be safely processed more than once.
+  # Note that an SQS DLQ is different to a Lambda DLQ, which is used for the function’s asynchronous invocation queue, not for event source queues.
 
   # LAMBDAS
   AttemptCallFunction:
@@ -26,25 +44,20 @@ Resources:
       Environment:
         Variables:
           SQSqueueName: !Ref MyMainQueue # Used to read the queue url inside the lambda
-      Policies:
+      Policies: # Inside properties
         - SQSSendMessagePolicy:
             QueueName: !GetAtt MyMainQueue.QueueName # Queue event capabilities to the lambda
 
-
-  # QUEUE POLICIES - Queue capabilities
-  # MySQSPolicy:
-  #   Type: AWS::SQS::QueuePolicy
-  #   Properties:
-  #     Queues: [!Ref "MyMainQueue"]
-  #     PolicyDocument:
-  #       Version: "2008-10-17"
-  #       Id: PublicationPolicy1
-  #       Statement:
-  #         - Sid: Allow-Lambda-SendMessage
-  #           Effect: Allow
-  #           Principal: "*"
-  #           Action: "sqs:*"
-  #           Resource: "*"
-  #           Condition:
-  #             ArnEquals:
-  #               aws:SourceArn: !Ref "AttemptCallFunction"
+  FailEventsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: fail-events.handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt MyMainQueue.QueueName
+      Events:
+        MySQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MyMainQueue.Arn

@@ -6,3 +6,9 @@ AWS Cloudformation project to implement:
 - SQS Configurations
 - Dead-letter queue
 - Lambda triggered on message received on dead-letter queue
+
+## References
+
+https://serverlessland.com/patterns/lambda-sqs
+https://aws.amazon.com/es/blogs/compute/choosing-between-messaging-services-for-serverless-applications/
+https://docs.aws.amazon.com/lambda/latest/operatorguide/sqs-retries.html
