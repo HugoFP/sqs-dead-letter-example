@@ -1,0 +1,12 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "sqs-dead-letter-example2"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-yv4lwbh7024x"
+s3_prefix = "sqs-dead-letter-example2"
+region = "us-east-2"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"staging\" VPCId=\"vpc-06ac959a5ddc3db46\" SubnetIds=\"subnet-075f6844ddafcaa78, subnet-0e85c41361ae17d4b\""
+image_repositories = []

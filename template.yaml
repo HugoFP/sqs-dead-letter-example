@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  sqs-dead-letter-example
+
+  Sample SAM Template for sqs-dead-letter-example
+
+Globals:
+  Function:
+    Runtime: nodejs14.x
+    Architectures:
+      - x86_64
+    Timeout: 10
+
+Resources:
+  # QUEUES
+  MyMainQueue:
+    Type: AWS::SQS::Queue
+
+  # LAMBDAS
+  AttemptCallFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: attempt-call.handler
+      Environment:
+        Variables:
+          SQSqueueName: !Ref MyMainQueue # Used to read the queue url inside the lambda
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MyMainQueue.QueueName # Queue event capabilities to the lambda
+
+
+  # QUEUE POLICIES - Queue capabilities
+  # MySQSPolicy:
+  #   Type: AWS::SQS::QueuePolicy
+  #   Properties:
+  #     Queues: [!Ref "MyMainQueue"]
+  #     PolicyDocument:
+  #       Version: "2008-10-17"
+  #       Id: PublicationPolicy1
+  #       Statement:
+  #         - Sid: Allow-Lambda-SendMessage
+  #           Effect: Allow
+  #           Principal: "*"
+  #           Action: "sqs:*"
+  #           Resource: "*"
+  #           Condition:
+  #             ArnEquals:
+  #               aws:SourceArn: !Ref "AttemptCallFunction"
