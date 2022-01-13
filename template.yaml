@@ -22,7 +22,10 @@ Resources:
       QueueName: MyMainQueue.fifo
       DelaySeconds: 0 # The time in seconds for which the delivery of all messages in the queue is delayed
       VisibilityTimeout: 10 # Time (s) in which a message will be unavailable after the message is delivered from the queue
-      MessageRetentionPeriod: 120 # The number of seconds that Amazon SQS retains a message. Min 60
+      MessageRetentionPeriod: 60 # The number of seconds that Amazon SQS retains a message. Min 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3 # Max number of fails before sending the message to the dead letter queue
   # QUEUE RETRIES - https://docs.aws.amazon.com/lambda/latest/operatorguide/sqs-retries.html
   # If a Lambda function throws an error, the Lambda service continues to process the failed message until:
   # 1. The message is processed without any error from the function, and the service deletes the message from the queue.
@@ -34,6 +37,17 @@ Resources:
   # 2. Set the maxReceiveCount on the source queue’s redrive policy to at least 5. This improves the chances of messages being processed before reaching the DLQ.
   # 3. Ensure idempotency to allow messages to be safely processed more than once.
   # Note that an SQS DLQ is different to a Lambda DLQ, which is used for the function’s asynchronous invocation queue, not for event source queues.
+
+  # DEAD LETTER QUEUE
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: true # Must be the same type as the source - https://stackoverflow.com/questions/54775643/unable-to-create-fifo-queue-with-dead-letter-queue-in-same-cloudformation-stack
+      ContentBasedDeduplication: true
+      QueueName: DeadLetterQueue.fifo
+      DelaySeconds: 0
+      VisibilityTimeout: 0
+      VisibilityTimeout: 240
 
   # LAMBDAS
   AttemptCallFunction:
@@ -61,3 +75,17 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt MyMainQueue.Arn
+
+  DeadLetterLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/
+      Handler: dead-letter-lambda.handler
+      Policies:
+        - SQSPollerPolicy:
+            QueueName: !GetAtt DeadLetterQueue.QueueName
+      Events:
+        MySQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt DeadLetterQueue.Arn

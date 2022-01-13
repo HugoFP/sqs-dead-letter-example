@@ -9,8 +9,7 @@ function getRandomInt(max) {
 
 exports.handler = async (event, context) => {
   try {
-
-    const myNumber = getRandomInt(10),
+    const myNumber = getRandomInt(10);
 
     const myBody = {
       message: `Message at ${Date()}`,
@@ -33,7 +32,7 @@ exports.handler = async (event, context) => {
       })
       .promise();
 
-    return myNumber
+    return myNumber;
   } catch (error) {
     console.error(JSON.stringify(error));
     throw error;
